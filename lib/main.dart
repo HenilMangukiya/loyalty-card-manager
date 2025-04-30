@@ -34,7 +34,8 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()..initialize()),
         ChangeNotifierProvider(create: (_) => CardProvider()..initialize()),
-        ChangeNotifierProvider(create: (_) => NotificationService()),
+        ChangeNotifierProvider(
+            create: (_) => NotificationService()..initialize()),
         ChangeNotifierProvider(create: (_) => SyncService()),
         Provider(create: (_) => ConnectivityService()),
       ],

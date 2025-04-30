@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/loyalty_card.dart';
 import '../utils/image_utils.dart';
+import '../services/notification_service.dart';
 
 class CardProvider with ChangeNotifier {
   late Box<LoyaltyCard> _cardsBox;
   bool _isLoading = false;
   String? _error;
+  final NotificationService _notificationService = NotificationService();
 
   List<LoyaltyCard> get cards => _cardsBox.values.toList();
   bool get isLoading => _isLoading;
@@ -24,6 +26,13 @@ class CardProvider with ChangeNotifier {
       notifyListeners();
 
       await _cardsBox.put(card.id, card);
+      if (card.expiryDate != null) {
+        await _notificationService.scheduleCardExpirationNotification(
+          cardName: card.name,
+          expirationDate: card.expiryDate!,
+          cardId: card.id,
+        );
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -39,6 +48,13 @@ class CardProvider with ChangeNotifier {
       notifyListeners();
 
       await _cardsBox.put(card.id, card);
+      if (card.expiryDate != null) {
+        await _notificationService.scheduleCardExpirationNotification(
+          cardName: card.name,
+          expirationDate: card.expiryDate!,
+          cardId: card.id,
+        );
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -58,6 +74,7 @@ class CardProvider with ChangeNotifier {
         await ImageUtils.deleteImage(card.logoPath);
       }
 
+      await _notificationService.cancelNotification(cardId);
       await _cardsBox.delete(cardId);
     } catch (e) {
       _error = e.toString();

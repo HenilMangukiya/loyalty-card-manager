@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 class NotificationService extends ChangeNotifier {
@@ -8,60 +9,78 @@ class NotificationService extends ChangeNotifier {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _localNotifications =
+  final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
+
+  bool get isInitialized => _isInitialized;
 
   Future<void> initialize() async {
-    // Initialize timezone
+    if (_isInitialized) return;
+
     tz.initializeTimeZones();
 
-    // Initialize local notifications
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    const initSettings = InitializationSettings(
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const DarwinInitializationSettings iOSSettings =
+        DarwinInitializationSettings();
+
+    const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
-      iOS: iosSettings,
+      iOS: iOSSettings,
     );
-    await _localNotifications.initialize(initSettings);
+
+    await _notifications.initialize(initSettings);
+    _isInitialized = true;
+    notifyListeners();
   }
 
-  Future<void> scheduleExpiryNotification(
-    String cardName,
-    DateTime expiryDate,
-  ) async {
-    final now = DateTime.now();
-    final difference = expiryDate.difference(now);
+  Future<void> scheduleCardExpirationNotification({
+    required String cardName,
+    required DateTime expirationDate,
+    required String cardId,
+  }) async {
+    if (!_isInitialized) await initialize();
 
-    if (difference.inDays <= 30 && difference.inDays >= 0) {
-      await _localNotifications.zonedSchedule(
-        expiryDate.millisecondsSinceEpoch ~/ 1000,
-        'Card Expiry Alert',
-        'Your $cardName card will expire in ${difference.inDays} days',
-        tz.TZDateTime.from(expiryDate, tz.local),
-        const NotificationDetails(
+    final now = DateTime.now();
+    final daysUntilExpiration = expirationDate.difference(now).inDays;
+
+    // Only schedule notification if card is expiring within 30 days
+    if (daysUntilExpiration <= 30 && daysUntilExpiration > 0) {
+      final notificationTime = expirationDate.subtract(const Duration(days: 1));
+
+      // Convert string ID to a unique integer for notification ID
+      final notificationId = cardId.hashCode.abs();
+
+      await _notifications.zonedSchedule(
+        notificationId,
+        'Card Expiration Reminder',
+        'Your $cardName card will expire tomorrow!',
+        tz.TZDateTime.from(notificationTime, tz.local),
+        NotificationDetails(
           android: AndroidNotificationDetails(
-            'card_expiry',
-            'Card Expiry Notifications',
-            channelDescription: 'Notifications for card expiry alerts',
+            'card_expiration_channel',
+            'Card Expiration Notifications',
+            channelDescription: 'Notifications for expiring loyalty cards',
             importance: Importance.high,
             priority: Priority.high,
           ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
+          iOS: const DarwinNotificationDetails(),
         ),
         androidAllowWhileIdle: true,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
+      notifyListeners();
     }
+  }
+
+  Future<void> cancelNotification(String cardId) async {
+    if (!_isInitialized) await initialize();
+    // Convert string ID to the same integer used for scheduling
+    final notificationId = cardId.hashCode.abs();
+    await _notifications.cancel(notificationId);
+    notifyListeners();
   }
 }
