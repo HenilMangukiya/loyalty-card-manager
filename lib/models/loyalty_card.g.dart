@@ -26,13 +26,14 @@ class LoyaltyCardAdapter extends TypeAdapter<LoyaltyCard> {
       logoPath: fields[6] as String?,
       points: fields[7] as int,
       needsSync: fields[8] as bool,
+      category: fields[9] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, LoyaltyCard obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +51,9 @@ class LoyaltyCardAdapter extends TypeAdapter<LoyaltyCard> {
       ..writeByte(7)
       ..write(obj.points)
       ..writeByte(8)
-      ..write(obj.needsSync);
+      ..write(obj.needsSync)
+      ..writeByte(9)
+      ..write(obj.category);
   }
 
   @override
